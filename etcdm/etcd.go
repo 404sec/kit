@@ -3,6 +3,7 @@ package etcdm
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/404sec/log"
@@ -59,25 +60,25 @@ func (s *etcdClient) Register(ctx context.Context, prefix, serviceName, addr str
 				if resp != nil {
 					//log.Println("keep alive success.")
 				} else {
-					log.Infow(ctx, "Etcd Register", "keep alive failed.")
+					log.Info(ctx, "Etcd Register", zap.String("etcd", "keep alive failed."))
 					time.Sleep(time.Second)
 					continue
 				}
 			case <-ctx.Done():
-				log.Infow(ctx, "Etcd Register", "close service register")
+				log.Info(ctx, "Etcd Register", zap.String("etcd", "close service register"))
 				cancelCtx, cancel = context.WithTimeout(ctx, time.Second*3)
 				defer cancel()
 				err := em.DeleteEndpoint(cancelCtx, serviceName)
 				if err != nil {
-					log.Errorw(ctx, "err", err.Error())
+					log.Error(ctx, "err", zap.Error(err))
 				}
 				err = lease.Close()
 				if err != nil {
-					log.Errorw(ctx, "err", err.Error())
+					log.Error(ctx, "err", zap.Error(err))
 				}
 				err = client.Close()
 				if err != nil {
-					log.Errorw(ctx, "err", err.Error())
+					log.Error(ctx, "err", zap.Error(err))
 				}
 				return
 			}
