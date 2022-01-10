@@ -8,16 +8,25 @@ import (
 	"time"
 )
 
-func (e *ES) newConfig() (conf elasticsearch.Config, err error) {
+type ESConfig struct {
+	Addresses             []string
+	Username              string
+	Password              string
+	Timeout               int64
+	MaxIdleConnsPerHost   int
+	ResponseHeaderTimeout int64
+}
+
+func (e *ESConfig) newConfig() (conf elasticsearch.Config, err error) {
 
 	cfg := elasticsearch.Config{
-		Addresses: e.Cfg.Addresses, //"https://es-5e0graix.public.tencentelasticsearch.com:9200"},
-		Username:  e.Cfg.Username,
-		Password:  e.Cfg.Password,
+		Addresses: e.Addresses, //"https://es-5e0graix.public.tencentelasticsearch.com:9200"},
+		Username:  e.Username,
+		Password:  e.Password,
 		Transport: &http.Transport{
-			MaxIdleConnsPerHost:   e.Cfg.MaxIdleConnsPerHost,
-			ResponseHeaderTimeout: time.Duration(e.Cfg.ResponseHeaderTimeout) * time.Second,
-			DialContext:           (&net.Dialer{Timeout: time.Duration(e.Cfg.Timeout) * time.Second}).DialContext,
+			MaxIdleConnsPerHost:   e.MaxIdleConnsPerHost,
+			ResponseHeaderTimeout: time.Duration(e.ResponseHeaderTimeout) * time.Second,
+			DialContext:           (&net.Dialer{Timeout: time.Duration(e.Timeout) * time.Second}).DialContext,
 		},
 	}
 
@@ -25,24 +34,15 @@ func (e *ES) newConfig() (conf elasticsearch.Config, err error) {
 }
 
 //
-func (e *ES) NewConnect(ctx context.Context) (err error) {
+func (e *ESConfig) NewConnect(ctx context.Context) (client *elasticsearch.Client, err error) {
 	conf, _ := e.newConfig()
 
-	e.Client, err = elasticsearch.NewClient(conf)
+	client, err = elasticsearch.NewClient(conf)
 
 	if err != nil {
-		return err
+		return client, err
 	}
-	_, err = e.Client.Ping()
+	_, err = client.Ping()
 
-	return err
-}
-
-func (e *ES) Close() error {
-	return nil
-}
-
-//
-func (e *ES) GetClient() *elasticsearch.Client {
-	return e.Client
+	return client, err
 }

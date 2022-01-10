@@ -7,41 +7,39 @@ import (
 	redis "github.com/go-redis/redis/v8"
 )
 
-func (r *RedisDB) newConfig() (conf *redis.Options, err error) {
+type RedisDBConfig struct {
+	Addr         string
+	Password     string
+	DB           int
+	PoolSize     int
+	ReadTimeout  int
+	DialTimeout  int
+	MinIdleConns int //Minimum number of idle connections which is useful when establishing new connection is slow.
+}
+
+func (r *RedisDBConfig) newConfig() (conf *redis.Options) {
 
 	conf = &redis.Options{
-		Addr:         r.Cfg.Addr,
-		Password:     r.Cfg.Password,
-		DB:           r.Cfg.DB,
-		PoolSize:     r.Cfg.PoolSize,
-		ReadTimeout:  time.Duration(r.Cfg.ReadTimeout) * time.Second,
-		DialTimeout:  time.Duration(r.Cfg.DialTimeout) * time.Second,
-		MinIdleConns: r.Cfg.MinIdleConns, //Minimum number of idle connections which is useful when establishing new connection is slow.
+		Addr:         r.Addr,
+		Password:     r.Password,
+		DB:           r.DB,
+		PoolSize:     r.PoolSize,
+		ReadTimeout:  time.Duration(r.ReadTimeout) * time.Second,
+		DialTimeout:  time.Duration(r.DialTimeout) * time.Second,
+		MinIdleConns: r.MinIdleConns, //Minimum number of idle connections which is useful when establishing new connection is slow.
 
 	}
 
-	return conf, nil
+	return conf
 }
 
 //
-func (r *RedisDB) NewConnect(ctx context.Context) (err error) {
-	conf, err := r.newConfig()
-	if err != nil {
-		return err
-	}
-	r.Client = redis.NewClient(conf)
-	r.Client.WithContext(ctx)
-	_, err = r.Client.Ping(context.Background()).Result()
-	return err
-}
+func (r *RedisDBConfig) NewConnect(ctx context.Context) (client *redis.Client, err error) {
 
-func (r *RedisDB) Close() error {
-	return r.Client.Close()
-}
-
-//
-func (r *RedisDB) GetClient() *redis.Client {
-	return r.Client
+	client = redis.NewClient(r.newConfig())
+	client.WithContext(ctx)
+	_, err = client.Ping(context.Background()).Result()
+	return client, err
 }
 
 /**/

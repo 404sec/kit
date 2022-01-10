@@ -6,16 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"github.com/404sec/log"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
 )
 
-//微信的appid与Secret
 type APP struct {
 	Appid  string `json:"appid"`
 	Secret string `json:"secret"`
+	Pay    Pay
 }
+
 type WXLoginResp struct {
 	OpenId     string `json:"openid"`
 	SessionKey string `json:"session_key"`
@@ -48,7 +50,7 @@ func (w *APP) MiniLogin(code string, ctx context.Context) (WXLoginResp, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			log.Error(ctx, "关闭http请求错误", err.Error())
+			log.Error(ctx, "关闭http请求错误", zap.Error(err))
 		}
 	}(resp.Body)
 
@@ -87,7 +89,7 @@ func (w *APP) GetMiniAccessToken(ctx context.Context) (string, error) {
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				log.Error(ctx, "关闭http请求错误", err.Error())
+				log.Error(ctx, "关闭http请求错误", zap.Error(err))
 			}
 		}(resp.Body)
 	}

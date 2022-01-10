@@ -3,6 +3,7 @@ package sqlm
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"reflect"
 	"strings"
 
@@ -10,6 +11,28 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+type PGConfig struct {
+	Clf DBLoginConfig
+	Con DbConfigConn
+}
+type DBLoginConfig struct {
+	Host        string
+	TimeZone    string
+	Port        string
+	User        string
+	Password    string
+	Dbname      string
+	Sslcert     string
+	Sslkey      string
+	Sslrootcert string
+	Sslmode     string
+}
+type DbConfigConn struct {
+	MaxIdleConns       int
+	SetMaxOpenConns    int
+	LongPollerInterval int64 //轮询时间
+}
 
 func dsn(i interface{}) string {
 	dsn := ""
@@ -23,52 +46,28 @@ func dsn(i interface{}) string {
 	return dsn
 }
 
-func (c *PGDB) GetConfigEmpty() interface{} {
-	return &PGConfig{}
-}
-
-func (c *PGDB) NewConnect(ctx context.Context) error {
+func (c *PGConfig) NewConnect(ctx context.Context) (*gorm.DB, error) {
 
 	var err error
-	d := dsn(c.Cfg.Clf)
-	c.Close(ctx) //关闭旧连接
-	c.Client, err = gorm.Open(postgres.Open(d), &gorm.Config{Logger: log.GetGLogger()})
+	d := dsn(c)
+	client, err := gorm.Open(postgres.Open(d)) //, &gorm.Config{Logger: log.GetGLogger()}
 	if err != nil {
-		log.Errorw(ctx, "db Client err", err.Error())
-		return err
+		log.Error(ctx, "db Client err", zap.Error(err))
+		return client, err
 	}
-	sqlDB, err := c.Client.DB()
+	sqlDB, err := client.DB()
 	if err != nil {
-		log.Errorw(ctx, "db Client err", err.Error())
-		return err
+		log.Error(ctx, "db Client err", zap.Error(err))
+		return client, err
 	}
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetMaxIdleConns(20)
-	if c.Cfg.Con.MaxIdleConns > 10 { //设置空闲连接的数量
-		sqlDB.SetMaxIdleConns(c.Cfg.Con.MaxIdleConns)
+	if c.Con.MaxIdleConns > 10 { //设置空闲连接的数量
+		sqlDB.SetMaxIdleConns(c.Con.MaxIdleConns)
 	}
-	if c.Cfg.Con.SetMaxOpenConns > 10 { //SetMaxOpenConns
-		sqlDB.SetMaxOpenConns(c.Cfg.Con.SetMaxOpenConns)
-	}
-
-	return nil
-}
-
-func (c *PGDB) Close(ctx context.Context) {
-	if c.Client != nil {
-		sqlDB, err := c.Client.DB()
-		if err != nil {
-			log.Errorw(ctx, "db Client err", err.Error())
-			return
-		}
-		err = sqlDB.Close()
-		if err != nil {
-			log.Errorw(ctx, "db close err", err.Error())
-			return
-		}
+	if c.Con.SetMaxOpenConns > 10 { //SetMaxOpenConns
+		sqlDB.SetMaxOpenConns(c.Con.SetMaxOpenConns)
 	}
 
-}
-func (c *PGDB) GetClient() *gorm.DB {
-	return c.Client
+	return client, nil
 }
